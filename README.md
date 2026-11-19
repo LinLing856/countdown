@@ -1,5 +1,7 @@
 # Countdown ⏳
 
+**🔗 Live Demo: https://linling856.github.io/countdown/**
+
 A pure front-end countdown web app. Mobile-first, bilingual (中文 / English), no backend, no build step.
 
 ## Features
