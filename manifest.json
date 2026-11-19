@@ -1,0 +1,18 @@
+{
+  "name": "倒计时 · 多线并行",
+  "short_name": "倒计时",
+  "description": "多线并行倒计时，支持自定义天数、月历视图和到期提醒",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f4f6fb",
+  "theme_color": "#4f6ef7",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

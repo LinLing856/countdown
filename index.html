@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<!-- 手机端必须的 viewport 设置：禁止缩放错位，适配刘海屏 -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#4f6ef7">
+<title>倒计时 · Countdown</title>
+<link rel="manifest" href="manifest.json">
+<style>
+/* ================= 设计变量（简洁卡片风） ================= */
+:root{
+  --bg:#f4f6fb; --card:#ffffff; --text:#1e2430; --sub:#7a8399;
+  --line:#e6eaf2; --accent:#4f6ef7; --accent-soft:#eef1ff;
+  --warn:#f59e0b; --danger:#ef4444; --ok:#10b981;
+  --radius:16px; --shadow:0 2px 10px rgba(30,40,80,.07);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#14161c; --card:#1e222b; --text:#e8ebf2; --sub:#8b93a7;
+    --line:#2a2f3a; --accent:#6d87ff; --accent-soft:#252b3d;
+    --shadow:0 2px 10px rgba(0,0,0,.35);
+  }
+}
+*{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent}
+body{
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:var(--bg); color:var(--text);
+  padding-bottom:calc(88px + env(safe-area-inset-bottom));
+}
+button{font-family:inherit; border:none; cursor:pointer; background:none; color:inherit}
+input,select{font-family:inherit; font-size:15px}
+
+/* ================= 顶栏 ================= */
+header{
+  position:sticky; top:0; z-index:20;
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:blur(10px);
+  padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
+  display:flex; align-items:center; gap:10px;
+  border-bottom:1px solid var(--line);
+}
+header h1{font-size:18px; flex:1}
+.lang-btn{font-size:13px; padding:6px 12px; border-radius:9px; background:var(--accent-soft); color:var(--accent); font-weight:600}
+.seg{display:flex; background:var(--accent-soft); border-radius:10px; padding:3px}
+.seg button{padding:6px 14px; border-radius:8px; font-size:14px; color:var(--sub)}
+.seg button.on{background:var(--card); color:var(--accent); box-shadow:var(--shadow); font-weight:600}
+
+/* ================= 提醒限制说明横幅 ================= */
+.notice{
+  margin:12px 16px 0; padding:10px 14px; font-size:13px; line-height:1.6;
+  background:#fff7e6; color:#8a5b00; border:1px solid #ffe4b3; border-radius:12px;
+}
+@media (prefers-color-scheme: dark){
+  .notice{background:#332b14; color:#e6c37a; border-color:#57451b}
+}
+
+/* ================= 卡片墙 ================= */
+.wall{padding:14px 16px 4px; display:flex; flex-direction:column; gap:12px; max-width:640px; margin:0 auto}
+
+.card{
+  background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow);
+  padding:16px; border-left:6px solid var(--accent);
+  transition:transform .15s;
+}
+.card:active{transform:scale(.985)}
+.card.urgent{border-left-color:var(--warn)}
+.card.expired{border-left-color:var(--danger); opacity:.75}
+.card-top{display:flex; align-items:center; gap:8px}
+.card-top .ico{font-size:20px}
+.card-top .title{font-size:16px; font-weight:600; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.badge{font-size:11px; padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent); flex-shrink:0}
+.badge.urgent{background:#fff3dd; color:var(--warn)}
+.badge.expired{background:#fdecec; color:var(--danger)}
+@media (prefers-color-scheme: dark){
+  .badge.urgent{background:#3a2f13; color:#e6b45c}
+  .badge.expired{background:#3b1d1d; color:#e27b7b}
+}
+.remaining{font-size:34px; font-weight:700; letter-spacing:.5px; margin:10px 0 2px; font-variant-numeric:tabular-nums}
+.card.expired .remaining{font-size:22px; color:var(--danger)}
+.remaining small{font-size:14px; color:var(--sub); font-weight:500}
+.meta{font-size:12.5px; color:var(--sub)}
+.card-actions{display:flex; gap:6px; margin-top:12px; flex-wrap:wrap}
+.card-actions button{
+  font-size:13px; padding:7px 12px; border-radius:9px;
+  background:var(--bg); color:var(--sub); border:1px solid var(--line);
+}
+.card-actions button.primary{background:var(--accent-soft); color:var(--accent); border-color:transparent}
+.card-actions button.on{color:var(--accent); font-weight:600}
+
+/* ================= 浮动添加按钮 ================= */
+.fab{
+  position:fixed; right:18px; bottom:calc(18px + env(safe-area-inset-bottom));
+  width:58px; height:58px; border-radius:50%;
+  background:var(--accent); color:#fff; font-size:30px; line-height:1;
+  box-shadow:0 6px 18px rgba(79,110,247,.45); z-index:15;
+}
+.fab:active{transform:scale(.94)}
+
+/* ================= 工具条（导入导出） ================= */
+.tools{display:flex; gap:8px; justify-content:center; padding:10px 16px 0; flex-wrap:wrap}
+.tools button{font-size:13px; color:var(--sub); padding:7px 14px; background:var(--card); border:1px solid var(--line); border-radius:10px}
+.tools button.danger{color:var(--danger)}
+
+/* ================= 月历 ================= */
+.cal-wrap{max-width:640px; margin:0 auto; padding:14px 16px}
+.cal{background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px}
+.cal-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px}
+.cal-head b{font-size:17px}
+.cal-head button{font-size:18px; padding:6px 12px; border-radius:9px; background:var(--bg)}
+.cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:4px; text-align:center}
+.cal-grid .wd{font-size:12px; color:var(--sub); padding:6px 0}
+.cal-cell{
+  aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  border-radius:10px; font-size:14px; position:relative; gap:2px;
+}
+.cal-cell.dim{color:var(--sub); opacity:.45}
+.cal-cell.today{background:var(--accent-soft); font-weight:700; color:var(--accent)}
+.cal-cell .dots{display:flex; gap:3px; height:6px}
+.cal-cell .dots i{width:6px; height:6px; border-radius:50%; display:block}
+.cal-cell.sel{outline:2px solid var(--accent)}
+.cal-cell.ck{background:color-mix(in srgb, var(--ok) 15%, transparent)}  /* 打卡点亮：绿色 */
+.cal-cell .ckn{font-size:9px; font-weight:700; color:var(--ok); line-height:1}  /* 一天打卡≥2个任务时显示 ✓N */
+.legend{display:flex; gap:14px; align-items:center; font-size:12px; color:var(--sub); margin-top:10px; flex-wrap:wrap}
+.legend i{width:9px; height:9px; border-radius:50%; display:inline-block}
+.day-events{margin-top:14px}
+.day-events h3{font-size:14px; margin-bottom:8px}
+.day-events .ev{display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; background:var(--bg); margin-bottom:6px; font-size:14px}
+.day-events .ev i{width:10px; height:10px; border-radius:50%; flex-shrink:0}
+.day-events .empty{color:var(--sub); font-size:13px; text-align:center; padding:12px 0}
+
+/* ================= 弹层（表单 / 聚焦模式 / 日期详情） ================= */
+.overlay{
+  position:fixed; inset:0; z-index:50; background:rgba(10,14,30,.45);
+  display:flex; align-items:flex-end; justify-content:center;
+}
+@media (min-width:560px){ .overlay{align-items:center} }
+.sheet{
+  background:var(--card); width:100%; max-width:520px;
+  border-radius:20px 20px 0 0; padding:20px 20px calc(20px + env(safe-area-inset-bottom));
+  max-height:88vh; overflow-y:auto;
+}
+@media (min-width:560px){ .sheet{border-radius:20px} }
+.sheet h2{font-size:17px; margin-bottom:14px}
+.field{margin-bottom:12px}
+.field label{display:block; font-size:13px; color:var(--sub); margin-bottom:6px}
+.field input[type=text], .field input[type=datetime-local]{
+  width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:10px;
+  background:var(--bg); color:var(--text);
+}
+.mode-row{display:flex; gap:8px}
+.mode-row button{
+  flex:1; padding:10px; border-radius:10px; font-size:14px;
+  border:1.5px solid var(--line); color:var(--sub); background:var(--bg);
+}
+.mode-row button.on{border-color:var(--accent); color:var(--accent); background:var(--accent-soft); font-weight:600}
+.dur-row{display:flex; gap:8px; align-items:center}
+.dur-row input{width:100%; padding:11px 8px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--text); text-align:center}
+.dur-row span{font-size:13px; color:var(--sub); flex-shrink:0}
+.chip-row{display:flex; gap:8px; flex-wrap:wrap}
+.chip-row .c{width:30px; height:30px; border-radius:50%; border:3px solid transparent}
+.chip-row .c.on{border-color:var(--text)}
+.chip-row .e{padding:6px 9px; border-radius:9px; font-size:18px; background:var(--bg); border:1.5px solid transparent}
+.chip-row .e.on{border-color:var(--accent)}
+.switch-row{display:flex; align-items:center; justify-content:space-between; padding:11px 12px; background:var(--bg); border-radius:10px; font-size:14px}
+.toggle{width:48px; height:28px; border-radius:99px; background:var(--line); position:relative; transition:.2s; flex-shrink:0}
+.toggle::after{content:""; position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%; background:#fff; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.toggle.on{background:var(--ok)}
+.toggle.on::after{left:23px}
+.hint{font-size:12px; color:var(--sub); margin-top:6px; line-height:1.5}
+.sheet-btns{display:flex; gap:10px; margin-top:16px}
+.sheet-btns button{flex:1; padding:13px; border-radius:12px; font-size:15px; font-weight:600}
+.btn-cancel{background:var(--bg); color:var(--sub)}
+.btn-ok{background:var(--accent); color:#fff}
+.btn-del{background:#fdecec; color:var(--danger)}
+@media (prefers-color-scheme: dark){ .btn-del{background:#3b1d1d} }
+
+/* 聚焦模式 */
+.focus-sheet{text-align:center; padding-top:36px}
+.focus-sheet .ico{font-size:44px}
+.focus-sheet .t{font-size:20px; font-weight:600; margin:10px 0 4px}
+.focus-sheet .m{font-size:13px; color:var(--sub); margin-bottom:18px}
+.focus-sheet .big{font-size:44px; font-weight:800; font-variant-numeric:tabular-nums; margin:6px 0 22px}
+.focus-sheet .big small{font-size:18px; color:var(--sub); font-weight:600}
+.focus-sheet .close{margin-top:8px; padding:12px 40px; border-radius:12px; background:var(--bg); color:var(--sub)}
+.empty-wall{text-align:center; color:var(--sub); padding:50px 20px; font-size:14px; line-height:1.8}
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="appTitle">⏳ 倒计时</h1>
+  <button class="lang-btn" id="langBtn">EN</button>
+  <div class="seg">
+    <button id="tabCards" class="on">卡片</button>
+    <button id="tabCal">日历</button>
+  </div>
+</header>
+
+<!-- 提醒生效条件说明（需求硬性要求，勿删） -->
+<div class="notice" id="noticeBox"></div>
+
+<!-- 卡片视图 -->
+<main id="viewCards">
+  <div class="wall" id="wall"></div>
+  <div class="tools">
+    <button id="btnExport">📤 导出 JSON</button>
+    <button id="btnImport">📥 导入 JSON</button>
+    <button id="btnClear" class="danger">🗑 清空数据</button>
+  </div>
+  <input type="file" id="importFile" accept=".json,application/json" hidden>
+</main>
+
+<!-- 日历视图 -->
+<main id="viewCal" style="display:none">
+  <div class="cal-wrap">
+    <div class="cal">
+      <div class="cal-head">
+        <button id="calPrev">‹</button>
+        <b id="calTitle"></b>
+        <button id="calNext">›</button>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="legend" id="legendBox"></div>
+      <div class="day-events" id="dayEvents"></div>
+    </div>
+  </div>
+</main>
+
+<button class="fab" id="fab" title="添加倒计时">＋</button>
+
+<!-- 添加/编辑表单弹层 -->
+<div class="overlay" id="formOverlay" style="display:none">
+  <div class="sheet">
+    <h2 id="formTitle">添加倒计时</h2>
+
+    <div class="field">
+      <label id="lTitle">标题</label>
+      <input type="text" id="fTitle" maxlength="30" placeholder="例如：期末考试">
+    </div>
+
+    <div class="field">
+      <label id="lMode">计时方式</label>
+      <div class="mode-row">
+        <button id="modeTarget" class="on">🎯 目标日期</button>
+        <button id="modeDuration">⏱ 自定义时长</button>
+      </div>
+    </div>
+
+    <!-- 目标日期模式 -->
+    <div class="field" id="fieldTarget">
+      <label id="lTarget">目标日期和时间</label>
+      <input type="datetime-local" id="fTarget">
+    </div>
+
+    <!-- 时长模式：从现在起 N天 N时 N分 -->
+    <div class="field" id="fieldDuration" style="display:none">
+      <label id="lDuration">从现在起的时长</label>
+      <div class="dur-row">
+        <input type="number" id="fD" min="0" value="7"> <span id="spD">天</span>
+        <input type="number" id="fH" min="0" max="23" value="0"> <span id="spH">时</span>
+        <input type="number" id="fM" min="0" max="59" value="0"> <span id="spM">分</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label id="lColor">颜色</label>
+      <div class="chip-row" id="colorRow"></div>
+    </div>
+    <div class="field">
+      <label id="lIcon">图标</label>
+      <div class="chip-row" id="iconRow"></div>
+    </div>
+
+    <div class="field">
+      <div class="switch-row">
+        <span id="lRemind">🔔 开启到期提醒</span>
+        <div class="toggle on" id="fRemind"></div>
+      </div>
+    </div>
+
+    <!-- 提醒配置：提前几天 + 提醒方式（仅开启提醒时显示） -->
+    <div class="field" id="fieldRemindCfg">
+      <label id="lRemindTiming">提醒时机</label>
+      <div class="dur-row">
+        <span id="leadPre">提前</span>
+        <input type="number" id="fLead" min="0" max="30" value="1">
+        <span id="leadPost">天开始</span>
+      </div>
+      <div class="mode-row" style="margin-top:8px">
+        <button id="patEach" class="on">📅 每天都提醒</button>
+        <button id="patLast">🎯 只在最后一天</button>
+      </div>
+      <div class="hint" id="patHint"></div>
+    </div>
+
+    <div class="sheet-btns">
+      <button class="btn-cancel" id="btnCancel">取消</button>
+      <button class="btn-ok" id="btnSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 聚焦模式弹层 -->
+<div class="overlay" id="focusOverlay" style="display:none">
+  <div class="sheet focus-sheet">
+    <div class="ico" id="fcIco">🎯</div>
+    <div class="t" id="fcTitle"></div>
+    <div class="m" id="fcMeta"></div>
+    <div class="big" id="fcBig"></div>
+    <div class="m" id="fcStatus"></div>
+    <div style="display:flex; gap:10px; justify-content:center">
+      <button class="close" id="fcCheck" onclick="checkFromFocus()" style="min-width:140px; background:var(--accent-soft); color:var(--accent)"></button>
+      <button class="close" id="fcClose">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =====================================================================
+ * 倒计时网页（纯前端 · 路线A：提醒仅在页面打开时生效）· 中英双语
+ * 数据全部存 localStorage，无服务端。
+ * 核心原则：所有计算基于时间戳（毫秒），展示时才转本地时间。
+ * ===================================================================== */
+
+const LS_KEY = "countdown_data_v1";
+const LS_LANG = "countdown_lang";
+const PALETTE = ["#4f6ef7","#10b981","#f59e0b","#ef4444","#8b5cf6","#06b6d4","#ec4899","#84cc16"];
+const ICONS = ["🎯","📚","✈️","🎂","⚽","💼","🎁","💡","🏃","🎬","💪","🌟"];
+
+/* ---------------- 国际化（中英双语词典） ---------------- */
+// 新增文案时：在 zh 和 en 里各加一条同名 key 即可
+const I18N = {
+  zh: {
+    appTitle: "⏳ 倒计时", langBtn: "EN",
+    tabCards: "卡片", tabCal: "日历",
+    notice: "🔔 <b>提醒仅在网页保持打开时生效</b>：关闭页面、锁屏或切到后台可能收不到提醒。iPhone 需 iOS 16.4+ 且已“添加到主屏幕”后才支持系统通知，否则将降级为页面内提示+声音。",
+    exportJSON: "📤 导出 JSON", importJSON: "📥 导入 JSON", clearData: "🗑 清空数据",
+    emptyWall: "还没有倒计时<br>点击右下角 ＋ 创建第一个吧 ✨",
+    pinned: "置顶", expired: "已过期", expiredDays: "已过期 {n} 天",
+    dayU: "天", goal: "目标", durMode: "时长模式",
+    remainDays: "({n} 天)", leftDays: "剩 {n} 天",
+    checkStats: "✅ 打卡：累计 {n} 次 · 连续 {s} 天",
+    checkToday: "✅ 今日打卡", checkedToday: "☑️ 今日已打卡",
+    remindOn: "🔔 提醒开", remindOff: "🔕 提醒关",
+    remindCfg: "🔔 提醒：{lead} · {pat}",
+    leadN: "提前 {n} 天", lead0: "不提前",
+    patEach: "每天都提醒", patLast: "仅最后一天",
+    actPin: "📌 置顶", actUnpin: "📌 取消置顶", actEdit: "✏️ 编辑",
+    formAdd: "添加倒计时", formEdit: "编辑倒计时",
+    lTitle: "标题", titlePh: "例如：期末考试",
+    lMode: "计时方式", modeTarget: "🎯 目标日期", modeDuration: "⏱ 自定义时长",
+    lTarget: "目标日期和时间", lDuration: "从现在起的时长",
+    uD: "天", uH: "时", uM: "分",
+    lColor: "颜色", lIcon: "图标",
+    lRemind: "🔔 开启到期提醒", lRemindTiming: "提醒时机",
+    leadPre: "提前", leadPost: "天开始",
+    patEachBtn: "📅 每天都提醒", patLastBtn: "🎯 只在最后一天",
+    patHint: "“每天都提醒”= 提前 N 天起到期前，每天提醒一次；“只在最后一天”= 剩 1 天时提醒一次。到期时刻都会再提醒。填 0 = 不提前，仅到期时提醒。",
+    cancel: "取消", save: "保存", close: "关闭",
+    fcRush: "⚠️ 不足 24 小时，冲刺吧！",
+    notifyTomorrow: "⏰ {t}：还有 {n} 天到期", notifyEnd: "🎉 到期啦：{t}",
+    endBody: "倒计时已结束！", targetIs: "目标时间 {t}",
+    notifyCheckin: "✅ 打卡成功：{t}", checkinBody: "已连续 {n} 天，累计 {m} 次",
+    remindOnTitle: "提醒已开启", remindOnBody: "「{t}」将按你设置的时机提醒你",
+    alertNoNotif: "当前浏览器不支持系统通知，将降级为页面内提示+声音提醒（页面保持打开时有效）。",
+    alertDenied: "未授权系统通知，将降级为页面内提示+声音。",
+    confirmDelete: "删除「{t}」？", confirmUncheck: "取消今天的打卡？",
+    alertNoTitle: "请填写标题", alertNoTarget: "请选择目标日期和时间",
+    alertBadDate: "日期格式有误", alertNoDur: "时长必须大于 0",
+    confirmImport: "导入 {n} 条倒计时，将覆盖当前数据，继续？",
+    importOk: "导入成功 ✅", importBad: "文件格式不对，请使用本页导出的 JSON",
+    confirmClear1: "确定清空所有倒计时数据？此操作不可恢复！",
+    confirmClear2: "再次确认：真的要清空吗？（建议先导出备份）",
+    wd: ["日","一","二","三","四","五","六"],
+    calTitle: "{y} 年 {m} 月",
+    dayRecordTitle: "{m} 月 {d} 日的记录",
+    noTarget: "这一天没有倒计时目标",
+    checkedTitle: "✅ 当天打卡",
+    hintCheckin: "今天完成的任务可以打勾 🎉",
+    legend: "<i style=\"background:var(--ok)\"></i>绿底=当天有打卡 · <i style=\"background:var(--accent)\"></i>彩点=完成的任务/目标日（颜色同事件） · ✓N=当天完成 N 项",
+  },
+  en: {
+    appTitle: "⏳ Countdown", langBtn: "中文",
+    tabCards: "Cards", tabCal: "Calendar",
+    notice: "🔔 <b>Reminders work only while this page stays open</b>: closing it, locking the screen, or switching to background may miss them. On iPhone, system notifications require iOS 16.4+ with “Add to Home Screen”; otherwise it falls back to in-page alert + sound.",
+    exportJSON: "📤 Export JSON", importJSON: "📥 Import JSON", clearData: "🗑 Clear Data",
+    emptyWall: "No countdowns yet<br>Tap ＋ to create your first one ✨",
+    pinned: "Pinned", expired: "Expired", expiredDays: "Expired {n}d ago",
+    dayU: "d", goal: "Target", durMode: "duration mode",
+    remainDays: "({n}d)", leftDays: "{n}d left",
+    checkStats: "✅ Check-ins: {n} total · {s}-day streak",
+    checkToday: "✅ Check in", checkedToday: "☑️ Checked in",
+    remindOn: "🔔 Alerts on", remindOff: "🔕 Alerts off",
+    remindCfg: "🔔 Alerts: {lead} · {pat}",
+    leadN: "{n}d early", lead0: "no lead",
+    patEach: "daily", patLast: "last day only",
+    actPin: "📌 Pin", actUnpin: "📌 Unpin", actEdit: "✏️ Edit",
+    formAdd: "New Countdown", formEdit: "Edit Countdown",
+    lTitle: "Title", titlePh: "e.g. Final Exam",
+    lMode: "Timer Mode", modeTarget: "🎯 Target Date", modeDuration: "⏱ Duration",
+    lTarget: "Target date & time", lDuration: "Duration from now",
+    uD: "d", uH: "h", uM: "m",
+    lColor: "Color", lIcon: "Icon",
+    lRemind: "🔔 Expiry alerts", lRemindTiming: "Reminder Timing",
+    leadPre: "Start", leadPost: "days early",
+    patEachBtn: "📅 Remind daily", patLastBtn: "🎯 Last day only",
+    patHint: "“Remind daily” = one alert per day from N days early until expiry; “Last day only” = one alert when 1 day remains. An extra alert fires at expiry. Enter 0 = only alert at expiry.",
+    cancel: "Cancel", save: "Save", close: "Close",
+    fcRush: "⚠️ Less than 24h — go for it!",
+    notifyTomorrow: "⏰ {t}: {n}d left", notifyEnd: "🎉 Time's up: {t}",
+    endBody: "The countdown has ended!", targetIs: "Target: {t}",
+    notifyCheckin: "✅ Checked in: {t}", checkinBody: "{n}-day streak, {m} total",
+    remindOnTitle: "Reminders on", remindOnBody: "We'll remind you about “{t}” as configured",
+    alertNoNotif: "This browser doesn't support system notifications; falling back to in-page alert + sound (while the page is open).",
+    alertDenied: "Notifications not permitted; falling back to in-page alert + sound.",
+    confirmDelete: "Delete “{t}”?", confirmUncheck: "Undo today's check-in?",
+    alertNoTitle: "Title is required", alertNoTarget: "Pick a target date & time",
+    alertBadDate: "Invalid date", alertNoDur: "Duration must be greater than 0",
+    confirmImport: "Import {n} countdowns? This overwrites current data.",
+    importOk: "Imported ✅", importBad: "Invalid file — use a JSON exported from this page",
+    confirmClear1: "Clear ALL countdown data? This cannot be undone!",
+    confirmClear2: "Confirm again: really clear? (Export a backup first!)",
+    wd: ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],
+    calTitle: "{m} {y}",
+    dayRecordTitle: "Records on {m} {d}",
+    noTarget: "No countdown targets on this day",
+    checkedTitle: "✅ Checked in that day",
+    hintCheckin: "Tasks done today? Check them in 🎉",
+    legend: "<i style=\"background:var(--ok)\"></i>green = has check-ins · <i style=\"background:var(--accent)\"></i>colored dot = done task / target day · ✓N = N done that day",
+  }
+};
+const MONTHS_EN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+// 语言偏好：本地记住；首次访问按浏览器语言自动判断
+let lang = localStorage.getItem(LS_LANG) || (navigator.language && navigator.language.startsWith("zh") ? "zh" : "en");
+const t = k => (I18N[lang] && I18N[lang][k]) || I18N.zh[k] || k;
+// 带占位符替换：tf("expiredDays", {n:3}) → "已过期 3 天"
+const tf = (k, map) => t(k).replace(/\{(\w+)\}/g, (_, key) => map[key]);
+
+/* ---------------- 数据层 ---------------- */
+let events = [];        // 所有倒计时
+let editingId = null;   // 正在编辑的 id（null=新增）
+let calYear, calMonth, calSelDate = null;
+
+function load(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    events = raw ? JSON.parse(raw) : [];
+  }catch(e){ events = []; }
+  // 旧数据迁移：补默认提醒配置，兼容 v1.0 的 fired.d1 结构
+  events.forEach(ev=>{
+    if (ev.lead === undefined) ev.lead = 1;               // 默认提前1天
+    if (!ev.remindPattern) ev.remindPattern = "each";      // 默认窗口内每天都提醒
+    if (ev.fired){
+      delete ev.fired.d1;                                  // 旧字段清理
+      ev.fired.days = ev.fired.days || {};
+    }
+  });
+}
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify(events)); }
+
+/* ---------------- 时间计算（全部基于时间戳） ---------------- */
+// 统一取事件的“到期时间戳”：目标模式直接取；时长模式 = 起始时间戳 + 时长
+function endTs(ev){
+  return ev.mode === "duration" ? (ev.startTs + ev.durationMs) : ev.targetTs;
+}
+function remainMs(ev){ return endTs(ev) - Date.now(); }
+
+// 剩余时间格式化：X天 HH:MM:SS
+function fmtRemain(ms){
+  const s = Math.floor(ms/1000);
+  const d = Math.floor(s/86400), h = Math.floor(s%86400/3600),
+        m = Math.floor(s%3600/60), sec = s%60;
+  const pad = n => String(n).padStart(2,"0");
+  return { d, text: `${d}${t("dayU")} ${pad(h)}:${pad(m)}:${pad(sec)}` };
+}
+// 本地时区格式化（仅展示用，数字格式中英通用）
+function fmtLocal(ts){
+  const dt = new Date(ts);
+  const pad = n => String(n).padStart(2,"0");
+  return `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+}
+// 提醒配置摘要（卡片上展示）
+function remindCfgText(ev){
+  const lead = (ev.lead||0) > 0 ? tf("leadN",{n:ev.lead}) : t("lead0");
+  const pat = ev.remindPattern === "last" ? t("patLast") : t("patEach");
+  return tf("remindCfg", {lead, pat});
+}
+
+/* ---------------- 打卡 ---------------- */
+// 日期字符串统一用本地时区 "YYYY-MM-DD"（仅存日期，不含时间）
+function dayStr(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function todayStr(){ return dayStr(new Date()); }
+
+// 打卡 / 取消打卡（今天）
+function toggleCheck(ev){
+  ev.checkins = ev.checkins || [];
+  const tday = todayStr();
+  const i = ev.checkins.indexOf(tday);
+  if (i >= 0){
+    if (!confirm(t("confirmUncheck"))) return;
+    ev.checkins.splice(i, 1);
+  } else {
+    ev.checkins.push(tday);
+    notify(tf("notifyCheckin",{t:ev.title}), tf("checkinBody",{n:streak(ev), m:ev.checkins.length}));
+  }
+  save(); render(); renderCal();
+}
+// 连续打卡天数：从今天（或昨天）往前数
+function streak(ev){
+  const set = new Set(ev.checkins || []);
+  let n = 0; const d = new Date();
+  if (!set.has(dayStr(d))) d.setDate(d.getDate()-1);  // 今天还没打卡不断签，从昨天起算
+  while (set.has(dayStr(d))){ n++; d.setDate(d.getDate()-1); }
+  return n;
+}
+function checkFromFocus(){
+  const ev = events.find(x=>x.id===focusId);
+  if (!ev) return;
+  toggleCheck(ev);
+  if (document.getElementById("focusOverlay").style.display !== "none") updateFocus();
+}
+
+/* ---------------- 排序：置顶 > 未过期（按剩余时间升序） > 已过期沉底 ---------------- */
+function sortedEvents(){
+  return [...events].sort((a,b)=>{
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    const ea = remainMs(a) <= 0, eb = remainMs(b) <= 0;
+    if (ea !== eb) return ea ? 1 : -1;
+    return remainMs(a) - remainMs(b);
+  });
+}
+
+/* ---------------- 卡片墙渲染 ---------------- */
+const wall = document.getElementById("wall");
+function render(){
+  const list = sortedEvents();
+  if (!list.length){
+    wall.innerHTML = `<div class="empty-wall">${t("emptyWall")}</div>`;
+    return;
+  }
+  const tday = todayStr();
+  wall.innerHTML = list.map(ev=>{
+    const r = remainMs(ev);
+    const expired = r <= 0;
+    const urgent = !expired && r <= 7*86400000;
+    const cls = expired ? "expired" : urgent ? "urgent" : "";
+    const badge = expired
+      ? `<span class="badge expired">${t("expired")}</span>`
+      : ev.pinned ? `<span class="badge">${t("pinned")}</span>` : "";
+    const remainText = expired
+      ? tf("expiredDays", {n: Math.ceil(-r/86400000)})   // 过期显示“已过期 X 天”
+      : fmtRemain(r).text;
+    const small = expired ? "" : `<small> ${tf("remainDays", {n: fmtRemain(r).d})}</small>`;
+    const checked = (ev.checkins||[]).includes(tday);
+    return `<div class="card ${cls}" data-id="${ev.id}" style="border-left-color:${ev.color}">
+      <div class="card-top">
+        <span class="ico">${ev.icon}</span>
+        <span class="title">${esc(ev.title)}</span>${badge}
+      </div>
+      <div class="remaining" data-remain-id="${ev.id}">${remainText}${small}</div>
+      <div class="meta">${t("goal")}：${fmtLocal(endTs(ev))}${ev.mode==="duration" ? " · " + t("durMode") : ""}</div>
+      <div class="meta">${tf("checkStats", {n:(ev.checkins||[]).length, s:streak(ev)})}</div>
+      ${ev.remind ? `<div class="meta">${remindCfgText(ev)}</div>` : ""}
+      <div class="card-actions">
+        <button class="primary ${checked?"on":""}" data-act="check">${checked?t("checkedToday"):t("checkToday")}</button>
+        <button class="primary ${ev.remind?"on":""}" data-act="remind">${ev.remind?t("remindOn"):t("remindOff")}</button>
+        <button data-act="pin">${ev.pinned?t("actUnpin"):t("actPin")}</button>
+        <button data-act="up">↑</button>
+        <button data-act="down">↓</button>
+        <button data-act="edit">${t("actEdit")}</button>
+        <button data-act="del">🗑</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+// 卡片按钮事件（事件委托）
+wall.addEventListener("click", e=>{
+  const card = e.target.closest(".card");
+  if (!card) return;
+  const ev = events.find(x=>x.id === card.dataset.id);
+  const act = e.target.dataset.act;
+  if (!act){ openFocus(ev); return; }        // 点卡片其他区域 → 聚焦模式
+  e.stopPropagation();
+  if (act==="check") toggleCheck(ev);
+  if (act==="remind") toggleRemind(ev);
+  if (act==="pin"){ ev.pinned=!ev.pinned; save(); render(); }
+  if (act==="edit") openForm(ev);
+  if (act==="del") delEvent(ev);
+  if (act==="up" || act==="down") moveEvent(ev, act);
+});
+function moveEvent(ev, dir){
+  const idx = events.indexOf(ev);
+  const j = dir==="up" ? idx-1 : idx+1;
+  if (j<0 || j>=events.length) return;
+  [events[idx], events[j]] = [events[j], events[idx]];
+  save(); render();
+}
+function delEvent(ev){
+  if (!confirm(tf("confirmDelete",{t:ev.title}))) return;
+  events = events.filter(x=>x.id!==ev.id);
+  save(); render(); renderCal();
+}
+
+/* ---------------- 通知提醒（路线A） ---------------- */
+// 需求：权限只在用户点击“开启提醒”的同一事件里请求，绝不页面加载时弹
+function toggleRemind(ev){
+  if (!ev.remind && !("Notification" in window)){
+    // 降级：不支持通知 API 时仍可页面内提醒+声音
+    alert(t("alertNoNotif"));
+    ev.remind = true; save(); render(); return;
+  }
+  if (!ev.remind && Notification.permission === "default"){
+    // 关键：必须在用户点击的同步上下文里调用 requestPermission
+    Notification.requestPermission().then(p=>{
+      if (p==="granted"){ ev.remind = true; }
+      else { ev.remind = true; alert(t("alertDenied")); }
+      save(); render();
+    });
+  } else {
+    ev.remind = !ev.remind;
+    save(); render();
+    if (ev.remind && Notification.permission==="granted"){
+      new Notification(t("remindOnTitle"), { body: tf("remindOnBody",{t:ev.title}) });
+    }
+  }
+}
+// 提醒检查（路线A：仅页面打开时有效）
+// 配置：ev.lead=提前N天；ev.remindPattern="each"窗口内每天一次 / "last"仅剩1天时一次
+// 防重复：ev.fired.days 按“本地日期”记录当天已提醒过，一天最多弹一次；fired.end 到期只弹一次
+function checkReminders(){
+  const now = Date.now();
+  const tday = todayStr();
+  events.forEach(ev=>{
+    if (!ev.remind) return;
+    const r = endTs(ev) - now;
+    ev.fired = ev.fired || {};
+    ev.fired.days = ev.fired.days || {};
+    const lead = Math.min(30, Math.max(0, ev.lead === undefined ? 1 : ev.lead));
+    const daysLeft = Math.ceil(r / 86400000);   // 剩余整天数（还剩不到1天算1）
+    if (r > 0 && daysLeft <= lead){
+      // “只在最后一天”模式：只有剩 1 天才提醒；“每天”模式：窗口内每天都提醒
+      const inWindow = ev.remindPattern === "last" ? daysLeft <= 1 : true;
+      if (inWindow && !ev.fired.days[tday]){
+        ev.fired.days[tday] = true; save();
+        notify(tf("notifyTomorrow",{t:ev.title, n:daysLeft}), tf("targetIs",{t:fmtLocal(endTs(ev))}));
+      }
+    }
+    // 到期时刻（到期后60秒内才算“刚到期”，避免每次打开都补弹）
+    if (r <= 0 && r > -60000 && !ev.fired.end){
+      ev.fired.end = true; save();
+      notify(tf("notifyEnd",{t:ev.title}), t("endBody"));
+    }
+  });
+}
+function notify(title, body){
+  // 声音提醒（Web Audio，无需额外文件）
+  try{ beep(); }catch(e){}
+  if ("Notification" in window && Notification.permission === "granted"){
+    new Notification(title, { body });
+  } else {
+    // 降级：页面内顶部横幅提示
+    flashInPage(title + " — " + body);
+  }
+}
+// 简短提示音：两个正弦音
+function beep(){
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  [880, 1175].forEach((f,i)=>{
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = f; o.type = "sine";
+    o.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(0.001, ctx.currentTime + i*0.28);
+    g.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + i*0.28 + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i*0.28 + 0.26);
+    o.start(ctx.currentTime + i*0.28); o.stop(ctx.currentTime + i*0.28 + 0.27);
+  });
+}
+function flashInPage(msg){
+  const n = document.createElement("div");
+  n.className = "notice"; n.style.position="fixed"; n.style.zIndex=99;
+  n.style.left="16px"; n.style.right="16px"; n.style.bottom="90px";
+  n.textContent = "🔔 " + msg;
+  document.body.appendChild(n);
+  setTimeout(()=>n.remove(), 8000);
+}
+
+/* ---------------- 添加/编辑表单 ---------------- */
+const overlay = document.getElementById("formOverlay");
+let formColor = PALETTE[0], formIcon = ICONS[0], formMode = "target", formPattern = "each";
+// 渲染颜色/图标选择块
+const colorRow = document.getElementById("colorRow");
+const iconRow = document.getElementById("iconRow");
+colorRow.innerHTML = PALETTE.map(c=>`<button class="c" data-c="${c}" style="background:${c}"></button>`).join("");
+iconRow.innerHTML = ICONS.map(e=>`<button class="e" data-e="${e}">${e}</button>`).join("");
+colorRow.onclick = e=>{ const b=e.target.closest(".c"); if(!b) return;
+  formColor=b.dataset.c; [...colorRow.children].forEach(x=>x.classList.toggle("on",x===b)); };
+iconRow.onclick = e=>{ const b=e.target.closest(".e"); if(!b) return;
+  formIcon=b.dataset.e; [...iconRow.children].forEach(x=>x.classList.toggle("on",x===b)); };
+
+function openForm(ev){
+  editingId = ev ? ev.id : null;
+  document.getElementById("formTitle").textContent = ev ? t("formEdit") : t("formAdd");
+  document.getElementById("fTitle").value = ev ? ev.title : "";
+  formColor = ev ? ev.color : PALETTE[events.length % PALETTE.length];
+  formIcon  = ev ? ev.icon  : ICONS[0];
+  [...colorRow.children].forEach(b=>b.classList.toggle("on", b.dataset.c===formColor));
+  [...iconRow.children].forEach(b=>b.classList.toggle("on", b.dataset.e===formIcon));
+  document.getElementById("fRemind").classList.toggle("on", ev ? ev.remind : true);
+  // 提醒配置：提前天数 + 方式
+  document.getElementById("fLead").value = ev && ev.lead !== undefined ? ev.lead : 1;
+  setPattern(ev ? (ev.remindPattern || "each") : "each");
+  syncRemindCfg();
+  setMode(ev ? ev.mode : "target");
+  if (ev && ev.mode==="target"){
+    // 时间戳 → datetime-local 输入框值（本地时区）
+    const d = new Date(ev.targetTs), pad=n=>String(n).padStart(2,"0");
+    document.getElementById("fTarget").value =
+      `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } else if (ev){
+    const ms = ev.durationMs;
+    document.getElementById("fD").value = Math.floor(ms/86400000);
+    document.getElementById("fH").value = Math.floor(ms%86400000/3600000);
+    document.getElementById("fM").value = Math.floor(ms%3600000/60000);
+  } else {
+    document.getElementById("fD").value = 7;
+    document.getElementById("fH").value = 0;
+    document.getElementById("fM").value = 0;
+    document.getElementById("fTarget").value = "";
+  }
+  overlay.style.display = "flex";
+}
+function setMode(m){
+  formMode = m;
+  document.getElementById("modeTarget").classList.toggle("on", m==="target");
+  document.getElementById("modeDuration").classList.toggle("on", m==="duration");
+  document.getElementById("fieldTarget").style.display    = m==="target" ? "" : "none";
+  document.getElementById("fieldDuration").style.display  = m==="duration" ? "" : "none";
+}
+document.getElementById("modeTarget").onclick   = ()=>setMode("target");
+document.getElementById("modeDuration").onclick = ()=>setMode("duration");
+// 提醒方式选择：每天 / 只在最后一天
+function setPattern(p){
+  formPattern = p;
+  document.getElementById("patEach").classList.toggle("on", p==="each");
+  document.getElementById("patLast").classList.toggle("on", p==="last");
+}
+document.getElementById("patEach").onclick = ()=>setPattern("each");
+document.getElementById("patLast").onclick = ()=>setPattern("last");
+// 开关提醒时显示/隐藏提醒配置区
+function syncRemindCfg(){
+  const on = document.getElementById("fRemind").classList.contains("on");
+  document.getElementById("fieldRemindCfg").style.display = on ? "" : "none";
+}
+document.getElementById("fRemind").onclick = e=>{
+  e.target.classList.toggle("on");
+  syncRemindCfg();
+};
+document.getElementById("fab").onclick = ()=>openForm(null);
+document.getElementById("btnCancel").onclick = ()=>overlay.style.display="none";
+
+document.getElementById("btnSave").onclick = ()=>{
+  const title = document.getElementById("fTitle").value.trim();
+  if (!title){ alert(t("alertNoTitle")); return; }
+  const remind = document.getElementById("fRemind").classList.contains("on");
+  // 提醒配置：提前 0~30 天 + 方式（每天 / 只在最后一天）
+  const lead = remind ? Math.min(30, Math.max(0, +document.getElementById("fLead").value || 0)) : 1;
+  const remindPattern = formPattern;
+  let data;
+  if (formMode === "target"){
+    const v = document.getElementById("fTarget").value;
+    if (!v){ alert(t("alertNoTarget")); return; }
+    // datetime-local 按本地时区解析成时间戳
+    const ts = new Date(v).getTime();
+    if (isNaN(ts)){ alert(t("alertBadDate")); return; }
+    data = { mode:"target", targetTs: ts };
+  } else {
+    const d = +document.getElementById("fD").value||0,
+          h = +document.getElementById("fH").value||0,
+          m = +document.getElementById("fM").value||0;
+    const ms = ((d*24+h)*60+m)*60000;
+    if (ms <= 0){ alert(t("alertNoDur")); return; }
+    // 关键：保存“起始时间戳”，到期时间 = startTs + durationMs，刷新不漂移
+    data = { mode:"duration", startTs: Date.now(), durationMs: ms };
+  }
+  if (editingId){
+    const ev = events.find(x=>x.id===editingId);
+    // 模式或时间变了就清空已触发标记，允许重新提醒
+    if (endTs({...ev, ...data}) !== endTs(ev)) ev.fired = {days:{}};
+    Object.assign(ev, data, { title, color:formColor, icon:formIcon, remind, lead, remindPattern });
+  } else {
+    events.push({ id: "ev_" + Date.now() + "_" + Math.floor(Math.random()*1000),
+      ...data, title, color:formColor, icon:formIcon, remind, lead, remindPattern, pinned:false, fired:{days:{}}, checkins:[] });
+  }
+  save(); overlay.style.display="none"; render(); renderCal();
+};
+
+/* ---------------- 聚焦模式 ---------------- */
+let focusId = null, focusTimer = null;
+function openFocus(ev){
+  focusId = ev.id;
+  document.getElementById("fcIco").textContent = ev.icon;
+  document.getElementById("fcTitle").textContent = ev.title;
+  document.getElementById("fcMeta").textContent = `${t("goal")}：${fmtLocal(endTs(ev))}`;
+  document.getElementById("focusOverlay").style.display = "flex";
+  updateFocus(); focusTimer = setInterval(updateFocus, 1000);
+}
+function updateFocus(){
+  const ev = events.find(x=>x.id===focusId); if (!ev) return;
+  const r = remainMs(ev);
+  document.getElementById("fcBig").innerHTML = r > 0
+    ? `${fmtRemain(r).text.split(" ")[0]} <small>${fmtRemain(r).text.split(" ").slice(1).join(" ")}</small>`
+    : `<span style="color:var(--danger)">${tf("expiredDays",{n:Math.ceil(-r/86400000)})}</span>`;
+  document.getElementById("fcStatus").textContent = r > 0
+    ? (r <= 86400000 ? t("fcRush") : tf("checkStats", {n:(ev.checkins||[]).length, s:streak(ev)}))
+    : tf("checkStats", {n:(ev.checkins||[]).length, s:streak(ev)});
+  const checked = (ev.checkins||[]).includes(todayStr());
+  const btn = document.getElementById("fcCheck");
+  btn.textContent = checked ? t("checkedToday") : t("checkToday");
+  btn.style.background = checked ? "var(--bg)" : "var(--accent-soft)";
+  btn.style.color = checked ? "var(--sub)" : "var(--accent)";
+}
+function closeFocus(){
+  document.getElementById("focusOverlay").style.display = "none";
+  clearInterval(focusTimer); focusTimer = null;
+}
+
+/* ---------------- 月历视图（轻量月历，与卡片共用同一份数据） ---------------- */
+function calTitleText(y, m){
+  return lang === "zh" ? `${y} 年 ${m+1} 月` : `${MONTHS_EN[m]} ${y}`;
+}
+function renderCal(){
+  document.getElementById("calTitle").textContent = calTitleText(calYear, calMonth);
+  const grid = document.getElementById("calGrid");
+  grid.innerHTML = t("wd").map(w=>`<div class="wd">${w}</div>`).join("");
+  const first = new Date(calYear, calMonth, 1).getDay();
+  const days = new Date(calYear, calMonth+1, 0).getDate();
+  const today = new Date();
+  // 事件按“本地日期字符串”索引，用于格子打点
+  const byDay = {};
+  events.forEach(ev=>{
+    const d = new Date(endTs(ev));
+    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    (byDay[key] = byDay[key]||[]).push(ev);
+  });
+  // 打卡日索引（同一天的格子会被绿色点亮）
+  const checkByDay = {};
+  events.forEach(ev=>{
+    (ev.checkins||[]).forEach(s=>{
+      const [y,m,d] = s.split("-").map(Number);
+      const key = `${y}-${m-1}-${d}`;   // 存储是 1-based 月份，格子索引是 0-based
+      (checkByDay[key] = checkByDay[key]||[]).push(ev);
+    });
+  });
+  for (let i=0;i<first;i++) grid.insertAdjacentHTML("beforeend", `<div class="cal-cell dim"></div>`);
+  for (let day=1; day<=days; day++){
+    const key = `${calYear}-${calMonth}-${day}`;
+    const evs = byDay[key]||[];
+    const isToday = today.getFullYear()===calYear && today.getMonth()===calMonth && today.getDate()===day;
+    const isSel = calSelDate && calSelDate[0]===calYear && calSelDate[1]===calMonth && calSelDate[2]===day;
+    // 打卡点用各任务自己的颜色（可区分完成的是哪几项），目标点用目标色；
+    // 最多显示 3 个点，超过时用一个绿点兜底
+    const checks = checkByDay[key] || [];
+    const dots = checks.slice(0,3).map(e=>`<i style="background:${e.color}"></i>`).join("") +
+                 evs.slice(0, Math.max(0, 3 - Math.min(checks.length,3)))
+                    .map(e=>`<i style="background:${e.color}"></i>`).join("") +
+                 (checks.length > 3 ? `<i style="background:var(--ok)"></i>` : "");
+    // 一天完成 ≥2 个任务 → 显示数量角标 ✓N
+    const ckn = checks.length > 1 ? `<span class="ckn">✓${checks.length}</span>` : "";
+    grid.insertAdjacentHTML("beforeend",
+      `<div class="cal-cell ${isToday?"today":""} ${isSel?"sel":""} ${checks.length?"ck":""}" data-day="${day}">
+        ${day}<div class="dots">${dots}</div>${ckn}</div>`);
+  }
+  // 点击日期 → 下方显示当天倒计时 + 打卡记录
+  grid.querySelectorAll(".cal-cell[data-day]").forEach(c=>{
+    c.onclick = ()=>{
+      calSelDate = [calYear, calMonth, +c.dataset.day];
+      renderCal();
+      renderDayEvents(+c.dataset.day);
+    };
+  });
+}
+// 某一天的详情：倒计时目标 + 当天打卡记录（仅今天可打卡）
+function renderDayEvents(day){
+  const box = document.getElementById("dayEvents");
+  const t2 = new Date();
+  const isTodayCell = t2.getFullYear()===calYear && t2.getMonth()===calMonth && t2.getDate()===day;
+  const cellStr = calYear+"-"+String(calMonth+1).padStart(2,"0")+"-"+String(day).padStart(2,"0");
+  const evs = events.filter(e=>{
+    const d = new Date(endTs(e));
+    return d.getFullYear()===calYear && d.getMonth()===calMonth && d.getDate()===day;
+  });
+  const checkedEv = events.filter(e=>(e.checkins||[]).includes(cellStr) && !evs.includes(e));
+  const evBtn = e=>{
+    const checked = (e.checkins||[]).includes(todayStr());
+    return `<button data-check-ev="${e.id}" style="font-size:13px; padding:5px 10px; border-radius:8px; border:1px solid var(--line);
+      background:${checked?"var(--accent-soft)":"var(--bg)"}; color:${checked?"var(--accent)":"var(--sub)"}">
+      ${checked?(lang==="zh"?"已打卡 ✓":"Done ✓"):t("checkToday")}</button>`;
+  };
+  const row = e=>{
+    const r = remainMs(e);
+    return `<div class="ev"><i style="background:${e.color}"></i>
+      ${e.icon} ${esc(e.title)}
+      <span style="margin-left:auto;color:var(--sub);font-size:13px">${r>0 ? tf("leftDays",{n:fmtRemain(r).d}) : t("expired")}</span>
+      ${isTodayCell ? evBtn(e) : ""}</div>`;
+  };
+  const title = lang==="zh" ? `${calMonth+1} 月 ${day} 日的记录` : `Records on ${MONTHS_EN[calMonth]} ${day}`;
+  box.innerHTML = `<h3>${title}</h3>` +
+    (evs.length ? evs.map(row).join("") : `<div class="empty">${t("noTarget")}</div>`) +
+    (checkedEv.length ? `<h3 style="margin-top:12px">${t("checkedTitle")}</h3>` + checkedEv.map(row).join("") : "") +
+    (isTodayCell && events.length ? `<div class="empty" style="padding:6px 0 0">${t("hintCheckin")}</div>` : "");
+}
+// 日历详情里的打卡按钮（事件委托）
+document.getElementById("dayEvents").addEventListener("click", e=>{
+  const b = e.target.closest("[data-check-ev]");
+  if (!b) return;
+  const ev = events.find(x=>x.id===b.dataset.checkEv);
+  if (!ev) return;
+  toggleCheck(ev);
+  if (calSelDate) renderDayEvents(calSelDate[2]);
+});
+
+/* ---------------- 视图切换 ---------------- */
+const tabC = document.getElementById("tabCards"), tabK = document.getElementById("tabCal");
+tabC.onclick = ()=>{ tabC.classList.add("on"); tabK.classList.remove("on");
+  document.getElementById("viewCards").style.display=""; document.getElementById("viewCal").style.display="none"; };
+tabK.onclick = ()=>{ tabK.classList.add("on"); tabC.classList.remove("on");
+  document.getElementById("viewCards").style.display="none"; document.getElementById("viewCal").style.display=""; renderCal(); };
+
+/* ---------------- 导出 / 导入 / 清空 ---------------- */
+document.getElementById("btnExport").onclick = exportJSON;
+document.getElementById("btnImport").onclick = ()=>document.getElementById("importFile").click();
+document.getElementById("btnClear").onclick = clearAll;
+function exportJSON(){
+  const blob = new Blob([JSON.stringify(events, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "countdown-backup-" + new Date().toISOString().slice(0,10) + ".json";
+  a.click(); URL.revokeObjectURL(a.href);
+}
+document.getElementById("importFile").onchange = e=>{
+  const file = e.target.files[0]; if (!file) return;
+  const fr = new FileReader();
+  fr.onload = ()=>{
+    try{
+      const arr = JSON.parse(fr.result);
+      if (!Array.isArray(arr) || !arr.every(x=>x && typeof x.title==="string" && (x.targetTs || x.startTs)))
+        throw new Error();
+      if (!confirm(tf("confirmImport",{n:arr.length}))) return;
+      events = arr.map(ev=>({ ...ev, fired: ev.fired || {days:{}}, checkins: ev.checkins || [] }));  // 兼容旧备份缺字段
+      save(); render(); renderCal();
+      alert(t("importOk"));
+    }catch(err){ alert(t("importBad")); }
+    e.target.value = "";
+  };
+  fr.readAsText(file);
+};
+function clearAll(){
+  if (!confirm(t("confirmClear1"))) return;
+  if (!confirm(t("confirmClear2"))) return;  // 二次确认
+  events = []; save(); render(); renderCal();
+}
+
+/* ---------------- 多语言切换 ---------------- */
+function applyLang(){
+  document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+  const $ = id=>document.getElementById(id);
+  $("appTitle").textContent = t("appTitle");
+  $("langBtn").textContent = t("langBtn");
+  $("tabCards").textContent = t("tabCards");
+  $("tabCal").textContent = t("tabCal");
+  $("noticeBox").innerHTML = t("notice");
+  $("btnExport").textContent = t("exportJSON");
+  $("btnImport").textContent = t("importJSON");
+  $("btnClear").textContent = t("clearData");
+  $("legendBox").innerHTML = t("legend");
+  // 表单
+  $("lTitle").textContent = t("lTitle");
+  $("fTitle").placeholder = t("titlePh");
+  $("lMode").textContent = t("lMode");
+  $("modeTarget").textContent = t("modeTarget");
+  $("modeDuration").textContent = t("modeDuration");
+  $("lTarget").textContent = t("lTarget");
+  $("lDuration").textContent = t("lDuration");
+  $("spD").textContent = t("uD"); $("spH").textContent = t("uH"); $("spM").textContent = t("uM");
+  $("lColor").textContent = t("lColor");
+  $("lIcon").textContent = t("lIcon");
+  $("lRemind").textContent = t("lRemind");
+  $("lRemindTiming").textContent = t("lRemindTiming");
+  $("leadPre").textContent = t("leadPre");
+  $("leadPost").textContent = t("leadPost");
+  $("patEach").textContent = t("patEachBtn");
+  $("patLast").textContent = t("patLastBtn");
+  $("patHint").textContent = t("patHint");
+  $("btnCancel").textContent = t("cancel");
+  $("btnSave").textContent = t("save");
+  $("fcClose").textContent = t("close");
+  // 重渲染动态内容
+  render(); renderCal();
+  if (calSelDate) renderDayEvents(calSelDate[2]);
+}
+document.getElementById("langBtn").onclick = ()=>{
+  lang = lang === "zh" ? "en" : "zh";
+  localStorage.setItem(LS_LANG, lang);
+  applyLang();
+};
+document.getElementById("fcClose").onclick = closeFocus;
+
+/* ---------------- 工具 ---------------- */
+function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+/* ---------------- 启动 ---------------- */
+load();
+const now = new Date();
+calYear = now.getFullYear(); calMonth = now.getMonth();
+applyLang();   // 内部会调用 render() 和 renderCal()
+// 定时器：每秒刷新剩余时间 + 每次检查提醒（页面打开时才有效——路线A的天然限制）
+setInterval(()=>{
+  events.forEach(ev=>{
+    const el = document.querySelector(`[data-remain-id="${ev.id}"]`);
+    if (!el) return;
+    const r = remainMs(ev);
+    el.innerHTML = r > 0 ? fmtRemain(r).text + `<small> ${tf("remainDays",{n:fmtRemain(r).d})}</small>`
+                         : tf("expiredDays",{n:Math.ceil(-r/86400000)});
+  });
+  checkReminders();
+  // 排序状态可能过期，低频重排
+  if (Date.now() % 15000 < 1000) render();
+}, 1000);
+checkReminders();
+
+// Service Worker：仅 HTTPS 或 localhost 下注册（断网可打开已缓存页面）
+if ("serviceWorker" in navigator && (location.protocol==="https:" || location.hostname==="localhost")){
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
+</script>
+</body>
+</html>
